@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import com.github.gunin_igor75.stock_report.domain.entity.TerminalScreenState
+import com.github.gunin_igor75.stock_report.ui.Terminal
 import com.github.gunin_igor75.stock_report.ui.theme.Stock_reportTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -22,7 +23,7 @@ class MainActivity : ComponentActivity() {
                 val screenState = viewModel.state.collectAsState()
                 when(val currentState = screenState.value){
                     is TerminalScreenState.Content -> {
-                        Log.d(TAG, currentState.bars.toString())
+                        Terminal(bars = currentState.bars)
                     }
                     is TerminalScreenState.Initial ->{}
                 }
