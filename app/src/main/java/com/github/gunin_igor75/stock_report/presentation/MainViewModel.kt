@@ -23,6 +23,7 @@ class MainViewModel @Inject constructor(
     }
 
     private fun loadBars() {
+        _state.value = TerminalScreenState.Loading
         viewModelScope.launch {
             val bars = barsLoadBarsUseCase()
             _state.value = TerminalScreenState.Content(bars)
