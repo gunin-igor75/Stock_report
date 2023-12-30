@@ -32,17 +32,20 @@ import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.github.gunin_igor75.stock_report.R
+import com.github.gunin_igor75.stock_report.domain.entity.Bar
 import com.github.gunin_igor75.stock_report.domain.entity.TerminalScreenState
 import com.github.gunin_igor75.stock_report.domain.entity.TerminalState
 import com.github.gunin_igor75.stock_report.domain.entity.TimeFrame
 import com.github.gunin_igor75.stock_report.domain.entity.rememberTerminalState
 import com.github.gunin_igor75.stock_report.presentation.MainViewModel
+import java.util.Calendar
+import java.util.Locale
 import kotlin.math.roundToInt
+import androidx.compose.ui.text.rememberTextMeasurer as rememberTextMeasurer
 
 private const val MIN_VISIBLE__COUNT_BAR = 20
 
@@ -73,6 +76,7 @@ fun Terminal(
             StockChart(
                 modifier = modifier,
                 terminalState = terminalState,
+                timeframe = currentState.timeFrame,
                 omChangeTerminalState = {
                     terminalState.value = it
                 }
@@ -137,10 +141,12 @@ private fun getLabelResId(timeframe: TimeFrame): Int {
 }
 
 
+@OptIn(ExperimentalTextApi::class)
 @Composable
 private fun StockChart(
     modifier: Modifier = Modifier,
     terminalState: State<TerminalState>,
+    timeframe: TimeFrame,
     omChangeTerminalState: (TerminalState) -> Unit
 
 ) {
@@ -161,6 +167,8 @@ private fun StockChart(
             )
         }
     }
+
+    val textMeasurer = rememberTextMeasurer()
 
     Canvas(
         modifier = modifier
@@ -197,6 +205,16 @@ private fun StockChart(
                     ),
                     strokeWidth = 1f
                 )
+                val nextBar = if (index < currentState.bars.size - 1) currentState.bars[index + 1] else null
+
+                drawLegendData(
+                    bar = bar,
+                    nextBar = nextBar,
+                    timeframe = timeframe,
+                    offsetX = xOffset,
+                    textMeasurer = textMeasurer
+                )
+
                 drawLine(
                     color = if (bar.open < bar.close) Color.Green else Color.Red,
                     start = Offset(
@@ -214,6 +232,85 @@ private fun StockChart(
         }
     }
 }
+
+@OptIn(ExperimentalTextApi::class)
+private fun DrawScope.drawLegendData(
+    bar: Bar,
+    nextBar: Bar?,
+    timeframe: TimeFrame,
+    offsetX: Float,
+    textMeasurer: TextMeasurer
+) {
+    val isDrawingLegendDate = isDrawLegendDate(
+        timeframe, bar, nextBar
+    )
+
+    if (!isDrawingLegendDate) return
+
+    drawLine(
+        color = Color.White.copy(alpha = 0.5f),
+        start = Offset(offsetX, 0f),
+        end = Offset(offsetX, size.height),
+        strokeWidth = 1f,
+        pathEffect = PathEffect.dashPathEffect(
+            intervals = floatArrayOf(
+                4.dp.toPx(), 4.dp.toPx()
+            )
+        )
+    )
+
+    val text = getTextLegendDate(timeframe, bar)
+    val textLayoutResult = textMeasurer.measure(
+        text = text,
+        style = TextStyle(
+            color = Color.White,
+            fontSize = 12.sp
+        )
+    )
+    drawText(
+        textLayoutResult = textLayoutResult,
+        topLeft = Offset(offsetX - textLayoutResult.size.width / 2, size.height)
+    )
+}
+
+private fun getTextLegendDate(timeframe: TimeFrame, bar: Bar): String {
+    val calendar = bar.time
+    return when (timeframe) {
+        TimeFrame.MIN_5, TimeFrame.MIN_15 -> {
+            val hour = calendar.get(Calendar.HOUR)
+            String.format("%02d:00", hour)
+        }
+
+        TimeFrame.MIN_30, TimeFrame.HOUR_1 -> {
+            val month = calendar.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.getDefault())
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+            String.format("%s %s", day, month)
+        }
+    }
+}
+
+private fun isDrawLegendDate(timeframe: TimeFrame, bar: Bar, nextBar: Bar?): Boolean {
+    val currentCalendar = bar.time
+    val minute = currentCalendar.get(Calendar.MINUTE)
+    val hour = currentCalendar.get(Calendar.HOUR)
+    val day = currentCalendar.get(Calendar.DAY_OF_MONTH)
+    return when (timeframe) {
+        TimeFrame.MIN_5 -> {
+            minute == 0
+        }
+
+        TimeFrame.MIN_15 -> {
+            minute == 0 && hour % 2 == 0
+        }
+
+        TimeFrame.MIN_30, TimeFrame.HOUR_1 -> {
+            if (nextBar == null) return false
+            val nexDay = nextBar.time.get(Calendar.DAY_OF_MONTH)
+            day != nexDay
+        }
+    }
+}
+
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
