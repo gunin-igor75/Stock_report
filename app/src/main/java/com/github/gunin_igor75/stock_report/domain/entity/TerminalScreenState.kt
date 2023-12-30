@@ -4,5 +4,8 @@ sealed class TerminalScreenState {
 
     object Initial: TerminalScreenState()
     object Loading: TerminalScreenState()
-    data class Content(val bars: List<Bar>): TerminalScreenState()
+    data class Content(
+        val bars: List<Bar>,
+        val timeFrame: TimeFrame
+        ): TerminalScreenState()
 }

@@ -4,10 +4,17 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
@@ -20,6 +27,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -28,8 +36,10 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.github.gunin_igor75.stock_report.R
 import com.github.gunin_igor75.stock_report.domain.entity.TerminalScreenState
 import com.github.gunin_igor75.stock_report.domain.entity.TerminalState
+import com.github.gunin_igor75.stock_report.domain.entity.TimeFrame
 import com.github.gunin_igor75.stock_report.domain.entity.rememberTerminalState
 import com.github.gunin_igor75.stock_report.presentation.MainViewModel
 import kotlin.math.roundToInt
@@ -41,7 +51,7 @@ private const val MIN_VISIBLE__COUNT_BAR = 20
 fun Terminal(
     modifier: Modifier = Modifier,
 ) {
-    val viewModel: MainViewModel =  hiltViewModel()
+    val viewModel: MainViewModel = hiltViewModel()
     val screenState = viewModel.state.collectAsState()
 
     when (val currentState = screenState.value) {
@@ -56,34 +66,76 @@ fun Terminal(
                 CircularProgressIndicator()
             }
         }
-        is TerminalScreenState.Content -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                val terminalState= rememberTerminalState(currentState.bars)
 
-                StockChart(
+        is TerminalScreenState.Content -> {
+            val terminalState = rememberTerminalState(currentState.bars)
+
+            StockChart(
+                modifier = modifier,
+                terminalState = terminalState,
+                omChangeTerminalState = {
+                    terminalState.value = it
+                }
+            )
+
+            currentState.bars.firstOrNull()?.let {
+                LegendPrices(
                     modifier = modifier,
                     terminalState = terminalState,
-                    omChangeTerminalState = {
-                        terminalState.value = it
-                    }
+                    lastPrice = it.close,
                 )
-
-                currentState.bars.firstOrNull()?.let {
-                    LegendPrices(
-                        modifier = modifier,
-                        terminalState = terminalState,
-                        lastPrice = it.close,
-                     )
-                }
             }
+            TimeFrames(
+                selectedFrame = currentState.timeFrame,
+                onTimeFrameSelected = {
+                    viewModel.loadBars(it)
+                }
+            )
         }
     }
-
-
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeFrames(
+    selectedFrame: TimeFrame,
+    onTimeFrameSelected: (TimeFrame) -> Unit
+
+) {
+    Row(
+        modifier = Modifier
+            .wrapContentSize()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        TimeFrame.values().forEach { timeframe ->
+            val isSelected = selectedFrame == timeframe
+            AssistChip(
+                onClick = {
+                    onTimeFrameSelected(timeframe)
+                },
+                label = {
+                    Text(text = stringResource(id = getLabelResId(timeframe)))
+                },
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = if (isSelected) Color.White else Color.Black,
+                    labelColor = if (isSelected) Color.Black else Color.White
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun getLabelResId(timeframe: TimeFrame): Int {
+    return when (timeframe) {
+        TimeFrame.MIN_5 -> R.string.timeframe_5_minutes
+        TimeFrame.MIN_15 -> R.string.timeframe_15_minutes
+        TimeFrame.MIN_30 -> R.string.timeframe_30_minutes
+        TimeFrame.HOUR_1 -> R.string.timeframe_1_hour
+    }
+}
+
 
 @Composable
 private fun StockChart(
@@ -101,7 +153,7 @@ private fun StockChart(
             val scrolledBy = (scrolledBy + panChange.x)
                 .coerceAtLeast(0f)
                 .coerceAtMost(bars.size * widthBar - terminalWidth)
-             omChangeTerminalState(
+            omChangeTerminalState(
                 copy(
                     visibleBarCount = visibleBarCount,
                     scrolledBy = scrolledBy
