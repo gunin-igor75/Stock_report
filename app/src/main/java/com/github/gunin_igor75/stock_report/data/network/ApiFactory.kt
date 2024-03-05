@@ -1,5 +1,6 @@
 package com.github.gunin_igor75.stock_report.data.network
 
+import com.github.gunin_igor75.stock_report.BuildConfig
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -10,7 +11,6 @@ object ApiFactory {
 
     private const val BASE_URL = "https://api.polygon.io/v2/"
     private const val HEADER = "Authorization"
-    private const val TOKEN = "Bearer oHe_sML9dnN1kQ_H015EBp9zIFd3R6an"
 
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(createAuthorizationInterceptor())
@@ -34,7 +34,7 @@ object ApiFactory {
     private fun createAuthorizationInterceptor(): Interceptor {
         return Interceptor { chain ->
             val newBuilder = chain.request().newBuilder()
-            newBuilder.addHeader(HEADER, TOKEN)
+            newBuilder.addHeader(HEADER, BuildConfig.TOKEN)
             return@Interceptor chain.proceed(newBuilder.build())
         }
     }

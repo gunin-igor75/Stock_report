@@ -20,6 +20,12 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        val token = property("apitoken")?.toString() ?: error(
+            "You should and apitoken" +
+                    " into gradle.properties"
+        )
+        buildConfigField("String", "TOKEN", "\"$token\"")
     }
 
     buildTypes {
@@ -41,6 +47,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.4.3"
